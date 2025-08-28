@@ -1,39 +1,24 @@
 
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import HomePageContent from '@/components/home-page-content';
-
-function HomePage() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-        const isAuthenticated = localStorage.getItem('isAuthenticated');
-        if (!isAuthenticated) {
-            router.replace('/login');
-        }
-    }, [router]);
-
-    const monthParam = searchParams.get('month');
-    const yearParam = searchParams.get('year');
-    
-    if (!isClient || !localStorage.getItem('isAuthenticated')) {
-        return <div className="flex h-screen w-full items-center justify-center">Cargando...</div>;
-    }
-
-    return (
-        <HomePageContent monthParam={monthParam} yearParam={yearParam} />
-    );
-}
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-    return (
-        <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Cargando...</div>}>
-            <HomePage />
-        </Suspense>
-    );
+  const router = useRouter();
+
+  useEffect(() => {
+    const isAuthenticated = localStorage.getItem('isAuthenticated');
+    if (isAuthenticated) {
+      router.replace('/dashboard');
+    } else {
+      router.replace('/login');
+    }
+  }, [router]);
+
+  return (
+    <div className="flex h-screen w-full items-center justify-center">
+      Redireccionando...
+    </div>
+  );
 }

@@ -2,15 +2,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getTransactionsAction } from '@/lib/actions';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, FirestoreTransaction } from '@/lib/types';
 import DashboardClient from '@/components/dashboard-client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore';
+
 
 interface HomePageContentProps {
   monthParam: string | null;
   yearParam: string | null;
 }
+
+const serializeTransaction = (doc: any): Transaction => {
+    const data = doc.data() as FirestoreTransaction;
+    return {
+      id: doc.id,
+      ...data,
+      date: (data.date as unknown as Timestamp).toDate(),
+    };
+  };
 
 export default function HomePageContent({ monthParam, yearParam }: HomePageContentProps) {
   const [data, setData] = useState<any>(null);
@@ -21,18 +32,18 @@ export default function HomePageContent({ monthParam, yearParam }: HomePageConte
     async function fetchData() {
       setLoading(true);
       setError(null);
-      try {
-        // This action now gets data from the mock DB
-        const result = await getTransactionsAction();
-        
-        if (!result.success || !result.data) {
-            throw new Error(result.message || "Failed to fetch transactions");
-        }
 
-        const allTransactions = result.data.map(t => ({
-            ...t,
-            date: new Date(t.date) 
-        })).sort((a,b) => b.date.getTime() - a.date.getTime());
+      if (!db) {
+        setError("La conexión con la base de datos no está disponible. Asegúrate de que estás en un entorno de navegador.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const transactionsCol = collection(db, 'transactions');
+        const q = query(transactionsCol, orderBy('date', 'desc'));
+        const querySnapshot = await getDocs(q);
+        const allTransactions = querySnapshot.docs.map(serializeTransaction);
 
         const pendingBranchTransactions = allTransactions
             .filter(t => 
@@ -80,6 +91,7 @@ export default function HomePageContent({ monthParam, yearParam }: HomePageConte
             return acc;
           }, {} as Record<string, number>);
           
+        const congregationIncome = incomeByCategory['congregation'] || 0;
         const worldwideWorkIncome = incomeByCategory['worldwide_work'] || 0;
         const renovationIncome = incomeByCategory['renovation'] || 0;
 
@@ -128,6 +140,7 @@ export default function HomePageContent({ monthParam, yearParam }: HomePageConte
           selectedMonth,
           pendingBranchTransactions,
           totalBalance,
+          congregationIncome,
           worldwideWorkIncome,
           renovationIncome
         });
@@ -161,7 +174,8 @@ export default function HomePageContent({ monthParam, yearParam }: HomePageConte
                     <Skeleton className="h-24" />
                     <Skeleton className="h-24" />
                 </div>
-                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-24" />
                     <Skeleton className="h-24" />
                     <Skeleton className="h-24" />
                     <Skeleton className="h-24" />
@@ -206,6 +220,7 @@ export default function HomePageContent({ monthParam, yearParam }: HomePageConte
       selectedMonth={data.selectedMonth}
       pendingBranchTransactions={data.pendingBranchTransactions}
       totalBalance={data.totalBalance}
+      congregationIncome={data.congregationIncome}
       worldwideWorkIncome={data.worldwideWorkIncome}
       renovationIncome={data.renovationIncome}
     />

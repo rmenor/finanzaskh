@@ -2,6 +2,10 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 
 import {
   Card,
@@ -31,16 +35,17 @@ import {
   Globe,
   Paintbrush,
   PiggyBank,
+  Users,
   LogOut,
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 import type { Transaction } from '@/lib/types';
 import { AddTransactionDialog } from './add-transaction-dialog';
 import { RecentTransactions } from './recent-transactions';
 import { MonthlyOverviewChart, IncomeBreakdownChart } from './charts';
 import { AppLogo } from './icons';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface DashboardClientProps {
   transactions: Transaction[];
@@ -56,6 +61,7 @@ interface DashboardClientProps {
   selectedMonth: number;
   pendingBranchTransactions: Transaction[];
   totalBalance: number;
+  congregationIncome: number;
   worldwideWorkIncome: number;
   renovationIncome: number;
 }
@@ -74,6 +80,7 @@ export default function DashboardClient({
   selectedMonth,
   pendingBranchTransactions,
   totalBalance,
+  congregationIncome,
   worldwideWorkIncome,
   renovationIncome,
 }: DashboardClientProps) {
@@ -107,7 +114,7 @@ export default function DashboardClient({
     { value: 3, label: 'Marzo' },
     { value: 4, label: 'Abril' },
     { value: 5, label: 'Mayo' },
-    { value: 6, label: 'Junio' },
+    { value: 6, 'label': 'Junio' },
     { value: 7, label: 'Julio' },
     { value: 8, label: 'Agosto' },
     { value: 9, label: 'Septiembre' },
@@ -147,18 +154,18 @@ export default function DashboardClient({
               </Select>
             </div>
             <AddTransactionDialog pendingBranchTransactions={pendingBranchTransactions} />
-             <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={handleLogout}>
-                            <LogOut className="h-5 w-5" />
-                            <span className="sr-only">Salir</span>
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Cerrar sesión</p>
-                    </TooltipContent>
-                </Tooltip>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={handleLogout}>
+                    <LogOut className="h-4 w-4" />
+                    <span className="sr-only">Cerrar Sesión</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Cerrar Sesión</p>
+                </TooltipContent>
+              </Tooltip>
             </TooltipProvider>
         </div>
       </header>
@@ -219,7 +226,21 @@ export default function DashboardClient({
                 </CardContent>
               </Card>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Ingresos Congregación
+                  </CardTitle>
+                  <Users className="h-4 w-4 text-cyan-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(congregationIncome)}</div>
+                   <p className="text-xs text-muted-foreground">
+                    Donaciones del mes
+                  </p>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">

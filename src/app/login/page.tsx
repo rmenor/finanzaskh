@@ -45,7 +45,7 @@ export default function LoginPage() {
         title: 'Éxito',
         description: 'Inicio de sesión correcto.',
       });
-      router.push('/');
+      router.push('/dashboard');
     } else {
       toast({
         variant: 'destructive',

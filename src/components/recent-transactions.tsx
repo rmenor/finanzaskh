@@ -1,6 +1,6 @@
-
 'use client';
 
+import * as XLSX from 'xlsx';
 import {
   Table,
   TableBody,
@@ -17,7 +17,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { EditTransactionDialog } from './edit-transaction-dialog';
 import { Button } from './ui/button';
-import { FilePenLine } from 'lucide-react';
+import { FilePenLine, FileSpreadsheet } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 export function RecentTransactions({
   transactions,
@@ -88,11 +89,53 @@ export function RecentTransactions({
     return null;
   }
 
+  const handleExport = () => {
+    const dataToExport = transactions.map(t => ({
+        'Fecha': format(new Date(t.date), 'dd/MM/yyyy'),
+        'Descripción': t.description || 'N/A',
+        'Tipo': typeLabels[t.type] || 'N/A',
+        'Categoría': t.category ? categoryLabels[t.category] : 'N/A',
+        'Estado': t.type === 'income' && (t.category === 'worldwide_work' || t.category === 'renovation') ? (t.sentToBranch ? 'Enviado' : 'Pendiente') : 'N/A',
+        'Importe': t.type === 'income' ? t.amount : -t.amount,
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Transacciones');
+    
+    // Set column widths
+    worksheet['!cols'] = [
+        { wch: 12 }, // Fecha
+        { wch: 40 }, // Descripción
+        { wch: 15 }, // Tipo
+        { wch: 15 }, // Categoría
+        { wch: 12 }, // Estado
+        { wch: 12 }, // Importe
+    ];
+
+    XLSX.writeFile(workbook, 'transacciones.xlsx');
+  }
+
   return (
     <Card>
-        <CardHeader>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+            </div>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button variant="outline" size="icon" onClick={handleExport} disabled={transactions.length === 0}>
+                            <FileSpreadsheet className="h-4 w-4" />
+                            <span className="sr-only">Exportar a Excel</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Exportar a Excel</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
         </CardHeader>
       <CardContent>
         <Table>
@@ -131,10 +174,19 @@ export function RecentTransactions({
                  <TableCell className="text-right">
                     {transaction.type !== 'branch_transfer' && (
                         <EditTransactionDialog transaction={transaction}>
-                            <Button variant="ghost" size="icon">
-                                <FilePenLine className="h-4 w-4" />
-                                <span className="sr-only">Editar</span>
-                            </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <FilePenLine className="h-4 w-4" />
+                                  <span className="sr-only">Editar</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Editar Transacción</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </EditTransactionDialog>
                     )}
                 </TableCell>
@@ -153,5 +205,3 @@ export function RecentTransactions({
     </Card>
   );
 }
-
-    

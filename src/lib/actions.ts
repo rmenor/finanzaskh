@@ -3,140 +3,15 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import type { Transaction } from './types';
-
-// In-memory mock database moved directly into actions.ts
-let transactions: Transaction[] = [
-    { 
-      id: '1', 
-      type: 'income', 
-      amount: 1250.75, 
-      date: new Date('2024-07-15'), 
-      description: 'Donaciones del mes - Caja A', 
-      category: 'congregation',
-      sentToBranch: false,
-    },
-    { 
-      id: '2', 
-      type: 'income', 
-      amount: 350.00, 
-      date: new Date('2024-07-20'), 
-      description: 'Donación Obra Mundial', 
-      category: 'worldwide_work',
-      sentToBranch: true,
-    },
-    { 
-      id: '3', 
-      type: 'expense', 
-      amount: 85.50, 
-      date: new Date('2024-07-22'), 
-      description: 'Factura de electricidad', 
-    },
-    { 
-      id: '4', 
-      type: 'income', 
-      amount: 150.00, 
-      date: new Date('2024-08-05'), 
-      description: 'Donación para renovación', 
-      category: 'renovation',
-      sentToBranch: false,
-    },
-    { 
-      id: '5', 
-      type: 'income', 
-      amount: 400.00, 
-      date: new Date('2024-08-10'), 
-      description: 'Donación Obra Mundial (electrónico)', 
-      category: 'worldwide_work',
-      sentToBranch: false,
-    },
-    {
-      id: '6',
-      type: 'branch_transfer',
-      amount: 350.00,
-      date: new Date('2024-07-28'),
-      description: 'Envío a sucursal - Julio',
-    },
-    { 
-      id: '7', 
-      type: 'expense', 
-      amount: 210.00, 
-      date: new Date('2024-08-18'), 
-      description: 'Material de limpieza', 
-    },
-    // ---- START 2025 DATA ----
-    { 
-        id: '8', 
-        type: 'income', 
-        amount: 1300.00, 
-        date: new Date('2025-01-15'), 
-        description: 'Donaciones Enero', 
-        category: 'congregation',
-        sentToBranch: false,
-    },
-    { 
-        id: '9', 
-        type: 'expense', 
-        amount: 100.00, 
-        date: new Date('2025-01-20'), 
-        description: 'Factura de agua', 
-    },
-    { 
-        id: '10', 
-        type: 'income', 
-        amount: 250.00, 
-        date: new Date('2025-01-25'), 
-        description: 'Donación Obra Mundial', 
-        category: 'worldwide_work',
-        sentToBranch: false,
-    }
-    // ---- END 2025 DATA ----
-];
-
-// Helper functions are now local to this file and not exported.
-const generateId = () => String(Date.now() + Math.random());
-
-const getTransactions = (): Transaction[] => {
-    // Return a deep copy to prevent mutation of the original data.
-    // JSON stringify/parse converts Dates to ISO strings.
-    const transactionsAsStrings = JSON.parse(JSON.stringify(transactions));
-    // We must convert the date strings back to Date objects.
-    return transactionsAsStrings.map((t: any) => ({
-        ...t,
-        date: new Date(t.date),
-    }));
-};
-
-const addTransaction = (transaction: Omit<Transaction, 'id'>): void => {
-    const newTransaction: Transaction = {
-        id: generateId(),
-        ...transaction,
-    };
-    transactions.unshift(newTransaction);
-};
-
-
-const updateTransaction = (id: string, data: Partial<Transaction>): void => {
-    const index = transactions.findIndex(t => t.id === id);
-    if (index !== -1) {
-        // Ensure the date is a Date object before merging.
-        const updatedData = { ...data };
-        if (typeof data.date === 'string') {
-            updatedData.date = new Date(data.date);
-        }
-        transactions[index] = { ...transactions[index], ...updatedData };
-    }
-};
-
-const markTransactionsAsSent = (transactionIds: string[]): void => {
-    transactions = transactions.map(t => {
-        if (transactionIds.includes(t.id)) {
-            return { ...t, sentToBranch: true };
-        }
-        return t;
-    });
-};
-// End of in-memory database logic
+import { db } from './firebase';
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  writeBatch,
+  Timestamp,
+} from 'firebase/firestore';
 
 const IncomeSchema = z.object({
   amount: z.coerce.number().positive({ message: 'La cantidad debe ser un número positivo.' }),
@@ -177,16 +52,21 @@ export async function addIncomeAction(data: z.infer<typeof IncomeSchema>) {
     return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
   }
   
+  if (!db) {
+    return { success: false, message: 'La base de datos no está disponible.' };
+  }
+
   try {
-    addTransaction({
+    const { amount, date, description, category } = validatedFields.data;
+    await addDoc(collection(db, 'transactions'), {
         type: 'income',
-        amount: validatedFields.data.amount,
-        date: new Date(validatedFields.data.date),
-        description: validatedFields.data.description || '',
-        category: validatedFields.data.category,
+        amount,
+        date: Timestamp.fromDate(new Date(date)),
+        description: description || '',
+        category,
         sentToBranch: false,
     });
-    revalidatePath('/');
+    revalidatePath('/dashboard');
     return { success: true, message: 'Ingreso añadido correctamente.' };
   } catch (e: any) {
     return { success: false, message: e.message || 'Error al añadir el ingreso.' };
@@ -200,14 +80,19 @@ export async function addExpenseAction(data: z.infer<typeof ExpenseSchema>) {
     return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
   }
 
+  if (!db) {
+    return { success: false, message: 'La base de datos no está disponible.' };
+  }
+
   try {
-    addTransaction({ 
+    const { amount, date, description } = validatedFields.data;
+    await addDoc(collection(db, 'transactions'), {
         type: 'expense',
-        amount: validatedFields.data.amount,
-        date: new Date(validatedFields.data.date),
-        description: validatedFields.data.description || '',
+        amount,
+        date: Timestamp.fromDate(new Date(date)),
+        description: description || '',
      });
-    revalidatePath('/');
+    revalidatePath('/dashboard');
     return { success: true, message: 'Gasto añadido correctamente.' };
   } catch (e: any) {
     return { success: false, message: e.message || 'Error al añadir el gasto.' };
@@ -220,19 +105,34 @@ export async function addBranchTransferAction(data: z.infer<typeof BranchTransfe
     if (!validatedFields.success) {
       return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
     }
+
+    if (!db) {
+      return { success: false, message: 'La base de datos no está disponible.' };
+    }
   
     try {
       const { amount, date, description, transactionIds } = validatedFields.data;
+      
+      const batch = writeBatch(db);
 
-      markTransactionsAsSent(transactionIds);
-      addTransaction({ 
+      // Mark selected transactions as sent
+      transactionIds.forEach(id => {
+          const docRef = doc(db, 'transactions', id);
+          batch.update(docRef, { sentToBranch: true });
+      });
+
+      // Add the new branch_transfer transaction
+      const newTransferRef = doc(collection(db, 'transactions'));
+      batch.set(newTransferRef, {
         amount, 
-        date: new Date(date), 
+        date: Timestamp.fromDate(new Date(date)), 
         type: 'branch_transfer', 
         description: description || 'Envío a la sucursal',
       });
 
-      revalidatePath('/');
+      await batch.commit();
+
+      revalidatePath('/dashboard');
       return { success: true, message: 'Envío a la sucursal añadido correctamente.' };
     } catch (e: any) {
       return { success: false, message: e.message || 'Error al añadir el envío a la sucursal.' };
@@ -246,37 +146,31 @@ export async function updateTransactionAction(data: z.infer<typeof UpdateTransac
         return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
     }
 
+    if (!db) {
+        return { success: false, message: 'La base de datos no está disponible.' };
+    }
+
     try {
         const { id, ...rest } = validatedFields.data;
         
-        const transactionData: Partial<Transaction> = {
+        const transactionRef = doc(db, 'transactions', id);
+        
+        // Firestore requires a plain object.
+        const updateData: any = {
             ...rest,
-            date: new Date(rest.date), // CRITICAL: Ensure date is a Date object before saving
+            date: Timestamp.fromDate(new Date(rest.date)),
             description: rest.description || '',
         };
 
-        updateTransaction(id, transactionData);
-        revalidatePath('/');
+        // Remove undefined fields so Firestore doesn't overwrite them
+        Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+        
+        await updateDoc(transactionRef, updateData);
+
+        revalidatePath('/dashboard');
         return { success: true, message: 'Transacción actualizada correctamente.' };
     } catch (e: any) {
         const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
         return { success: false, message: `Error al actualizar la transacción: ${message}` };
-    }
-}
-
-
-export async function getTransactionsAction() {
-    try {
-        const transactionsData = getTransactions();
-        // The dates in our mock data are Dates, but they need to be serialized for the client.
-        const serializedTransactions = transactionsData.map(t => ({
-            ...t,
-            date: t.date.toISOString(),
-        }));
-        
-        return { success: true, data: serializedTransactions };
-    } catch(e: any) {
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        return { success: false, message: `Error al obtener los datos: ${errorMessage}` };
     }
 }

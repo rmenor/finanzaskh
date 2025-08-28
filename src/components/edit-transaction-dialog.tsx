@@ -253,5 +253,3 @@ export function EditTransactionDialog({ transaction, children }: EditTransaction
     </Dialog>
   );
 }
-
-    
