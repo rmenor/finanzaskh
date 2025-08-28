@@ -1,6 +1,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
@@ -37,6 +38,7 @@ import {
   PiggyBank,
   Users,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -153,6 +155,14 @@ export default function DashboardClient({
               </Select>
             </div>
             <AddTransactionDialog pendingBranchTransactions={pendingBranchTransactions} />
+             <Link href="/settings">
+                <Button variant="outline" size="icon" asChild>
+                    <div>
+                        <Settings className="h-4 w-4" />
+                        <span className="sr-only">Configuración</span>
+                    </div>
+                </Button>
+            </Link>
             <Button variant="outline" size="icon" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
                 <span className="sr-only">Cerrar Sesión</span>
