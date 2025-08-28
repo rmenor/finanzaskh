@@ -39,7 +39,7 @@ export default function LoginPage() {
   });
 
   const onSubmit = (data: LoginFormValues) => {
-    if (data.username === 'admin' && data.password === 'admin') {
+    if (data.username === 'admin_prado' && data.password === 'LucasMateo1914') {
       localStorage.setItem('isAuthenticated', 'true');
       toast({
         title: 'Éxito',
@@ -74,7 +74,7 @@ export default function LoginPage() {
               <Input
                 id="username"
                 type="text"
-                placeholder="admin"
+                placeholder="Usuario"
                 {...register('username')}
               />
               {errors.username && (
@@ -86,7 +86,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="admin"
+                placeholder="Contraseña"
                 {...register('password')}
               />
               {errors.password && (
