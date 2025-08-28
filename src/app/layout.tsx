@@ -18,6 +18,7 @@ export default function RootLayout({
       <head>
           <title>Finanzas KH</title>
           <meta name="description" content="Aplicación para la gestión de finanzas" />
+          <link rel="manifest" href="/manifest.json" />
       </head>
       <body
         className={cn(

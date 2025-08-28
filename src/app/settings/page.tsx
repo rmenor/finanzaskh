@@ -34,7 +34,7 @@ export default function SettingsPage() {
             const link = document.createElement('a');
             link.href = url;
             const date = new Date().toISOString().split('T')[0];
-            link.download = `finanzas-jw-backup-${date}.json`;
+            link.download = `finanzas-kh-backup-${date}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -115,7 +115,7 @@ export default function SettingsPage() {
        <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
         <div className="flex items-center gap-2 font-semibold">
             <AppLogo className="h-6 w-6 text-primary" />
-            <span className="">Finanzas JW - Configuración</span>
+            <span className="">Finanzas KH - Configuración</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
             <Link href="/dashboard">
