@@ -39,7 +39,7 @@ const BranchTransferSchema = z.object({
 
 const UpdateTransactionSchema = z.object({
     id: z.string(),
-    type: z.enum(['income', 'expense']),
+    type: z.enum(['income', 'expense', 'branch_transfer']),
     amount: z.coerce.number().positive({ message: 'La cantidad debe ser un número positivo.' }),
     date: z.string().min(1, { message: 'La fecha es obligatoria.' }),
     description: z.string().max(100, { message: 'La descripción debe tener 100 caracteres o menos.' }).optional(),
@@ -50,6 +50,19 @@ const UpdateTransactionSchema = z.object({
 const DeleteTransactionSchema = z.object({
     id: z.string().min(1, { message: 'El ID de la transacción es obligatorio.' }),
 });
+
+const RestoreTransactionSchema = z.object({
+    // id: z.string(), // The original ID from the backup
+    type: z.enum(['income', 'expense', 'branch_transfer']),
+    amount: z.number(),
+    date: z.object({
+      seconds: z.number(),
+      nanoseconds: z.number(),
+    }).transform(t => Timestamp.fromMillis(t.seconds * 1000)),
+    description: z.string().optional(),
+    category: z.enum(['congregation', 'worldwide_work', 'renovation']).optional(),
+    status: z.enum(['Completado', 'Pendiente de envío', 'Enviado']).optional(),
+  });
 
 export async function addIncomeAction(data: z.infer<typeof IncomeSchema>) {
   const validatedFields = IncomeSchema.safeParse(data);
@@ -220,5 +233,39 @@ export async function deleteTransactionAction(data: z.infer<typeof DeleteTransac
     } catch (e: any) {
         const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
         return { success: false, message: `Error al eliminar la transacción: ${message}` };
+    }
+}
+
+export async function restoreTransactionsAction(transactions: unknown[]) {
+    if (!db) {
+        return { success: false, message: 'La base de datos no está disponible.' };
+    }
+
+    const batch = writeBatch(db);
+    
+    try {
+        for (const transactionData of transactions) {
+            // we remove the original ID before validating and writing
+            const { id, ...dataToValidate } = transactionData as any;
+            
+            const validatedFields = RestoreTransactionSchema.safeParse(dataToValidate);
+    
+            if (!validatedFields.success) {
+              console.error('Invalid transaction in backup file:', validatedFields.error.flatten().fieldErrors);
+              // Skip invalid records
+              continue;
+            }
+
+            const newDocRef = doc(collection(db, 'transactions'));
+            batch.set(newDocRef, validatedFields.data);
+        }
+    
+        await batch.commit();
+        revalidatePath('/dashboard');
+        return { success: true, message: 'Transacciones restauradas correctamente.' };
+
+    } catch (e: any) {
+        const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
+        return { success: false, message: `Error al restaurar las transacciones: ${message}` };
     }
 }
