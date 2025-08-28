@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as XLSX from 'xlsx';
@@ -11,14 +12,15 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, TransactionStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { EditTransactionDialog } from './edit-transaction-dialog';
 import { Button } from './ui/button';
-import { FilePenLine, FileSpreadsheet } from 'lucide-react';
+import { FilePenLine, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { DeleteTransactionDialog } from './delete-transaction-dialog';
 
 export function RecentTransactions({
   transactions,
@@ -78,15 +80,16 @@ export function RecentTransactions({
     return type === 'income' ? '+' : '-';
   }
   
-  const getStatusBadge = (transaction: Transaction) => {
-    if (transaction.type === 'income' && (transaction.category === 'worldwide_work' || transaction.category === 'renovation')) {
-        if (transaction.sentToBranch) {
-            return <Badge variant="outline" className="text-gray-600 border-gray-200">Enviado</Badge>;
-        } else {
-            return <Badge variant="outline" className="text-orange-600 border-orange-200">Pendiente</Badge>;
-        }
-    }
-    return null;
+  const getStatusBadge = (status?: TransactionStatus) => {
+    if (!status) return null;
+
+    const statusClasses: Record<TransactionStatus, string> = {
+        'Pendiente de envío': 'text-orange-600 border-orange-200',
+        'Enviado': 'text-blue-600 border-blue-200',
+        'Completado': 'text-green-600 border-green-200',
+    };
+
+    return <Badge variant="outline" className={cn(statusClasses[status])}>{status}</Badge>;
   }
 
   const handleExport = () => {
@@ -95,7 +98,7 @@ export function RecentTransactions({
         'Descripción': t.description || 'N/A',
         'Tipo': typeLabels[t.type] || 'N/A',
         'Categoría': t.category ? categoryLabels[t.category] : 'N/A',
-        'Estado': t.type === 'income' && (t.category === 'worldwide_work' || t.category === 'renovation') ? (t.sentToBranch ? 'Enviado' : 'Pendiente') : 'N/A',
+        'Estado': t.status || 'N/A',
         'Importe': t.type === 'income' ? t.amount : -t.amount,
     }));
     
@@ -109,7 +112,7 @@ export function RecentTransactions({
         { wch: 40 }, // Descripción
         { wch: 15 }, // Tipo
         { wch: 15 }, // Categoría
-        { wch: 12 }, // Estado
+        { wch: 20 }, // Estado
         { wch: 12 }, // Importe
     ];
 
@@ -147,7 +150,7 @@ export function RecentTransactions({
               <TableHead>Estado</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead className="text-right">Cantidad</TableHead>
-              <TableHead className="w-[50px]">Acciones</TableHead>
+              <TableHead className="text-center">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -165,30 +168,29 @@ export function RecentTransactions({
                     ) : 'N/A'}
                 </TableCell>
                 <TableCell>
-                    {getStatusBadge(transaction)}
+                    {getStatusBadge(transaction.status)}
                 </TableCell>
                 <TableCell>{format(new Date(transaction.date), 'PPP', { locale: es })}</TableCell>
                 <TableCell className={cn("text-right font-semibold", getAmountClass(transaction.type))}>
                   {getAmountPrefix(transaction.type)} {formatCurrency(transaction.amount)}
                 </TableCell>
-                 <TableCell className="text-right">
-                    {transaction.type !== 'branch_transfer' && (
-                        <EditTransactionDialog transaction={transaction}>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
+                 <TableCell className="text-center">
+                    <div className="flex items-center justify-center space-x-1">
+                        {transaction.type !== 'branch_transfer' && (
+                            <EditTransactionDialog transaction={transaction}>
                                 <Button variant="ghost" size="icon">
-                                  <FilePenLine className="h-4 w-4" />
-                                  <span className="sr-only">Editar</span>
+                                    <FilePenLine className="h-4 w-4" />
+                                    <span className="sr-only">Editar</span>
                                 </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Editar Transacción</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </EditTransactionDialog>
-                    )}
+                            </EditTransactionDialog>
+                        )}
+                        <DeleteTransactionDialog transactionId={transaction.id}>
+                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600">
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Eliminar</span>
+                            </Button>
+                        </DeleteTransactionDialog>
+                    </div>
                 </TableCell>
               </TableRow>
             ))}

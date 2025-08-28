@@ -46,11 +46,7 @@ export default function HomePageContent({ monthParam, yearParam }: HomePageConte
         const allTransactions = querySnapshot.docs.map(serializeTransaction);
 
         const pendingBranchTransactions = allTransactions
-            .filter(t => 
-                t.type === 'income' && 
-                (t.category === 'worldwide_work' || t.category === 'renovation') && 
-                !t.sentToBranch
-            );
+            .filter(t => t.status === 'Pendiente de envío');
 
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
@@ -114,15 +110,17 @@ export default function HomePageContent({ monthParam, yearParam }: HomePageConte
           // Use UTC dates to prevent timezone issues
           const month = new Date(Date.UTC(transactionDate.getFullYear(), transactionDate.getMonth(), 1)).toISOString();
           if (!acc[month]) {
-            acc[month] = { month, income: 0, expenses: 0 };
+            acc[month] = { month, income: 0, expenses: 0, branch_transfer: 0 };
           }
           if (t.type === 'income') {
             acc[month].income += t.amount;
           } else if (t.type === 'expense') {
             acc[month].expenses += t.amount;
+          } else if (t.type === 'branch_transfer') {
+            acc[month].branch_transfer += t.amount;
           }
           return acc;
-        }, {} as Record<string, { month: string; income: number; expenses: number }>);
+        }, {} as Record<string, { month: string; income: number; expenses: number, branch_transfer: number }>);
         
         const sortedMonthlyData = Object.values(monthlyDataAllYears).sort((a,b) => new Date(a.month) < new Date(b.month) ? -1 : 1).slice(-6);
 

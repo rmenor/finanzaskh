@@ -27,6 +27,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
@@ -42,14 +43,13 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/lib/types';
-import { Switch } from './ui/switch';
 
 const FormSchema = z.object({
     amount: z.coerce.number().positive({ message: 'La cantidad debe ser un número positivo.' }),
     date: z.date({ required_error: 'La fecha es obligatoria.' }),
     description: z.string().max(100).optional(),
     category: z.enum(['congregation', 'worldwide_work', 'renovation']).optional(),
-    sentToBranch: z.boolean().optional(),
+    status: z.enum(['Completado', 'Pendiente de envío', 'Enviado']).optional(),
 });
   
 type FormValues = z.infer<typeof FormSchema>;
@@ -68,9 +68,9 @@ export function EditTransactionDialog({ transaction, children }: EditTransaction
     defaultValues: {
       amount: transaction.amount,
       date: new Date(transaction.date),
-      description: transaction.description,
+      description: transaction.description || '',
       category: transaction.category,
-      sentToBranch: transaction.sentToBranch,
+      status: transaction.status,
     },
   });
   const { isSubmitting } = form.formState;
@@ -93,12 +93,17 @@ export function EditTransactionDialog({ transaction, children }: EditTransaction
   };
 
   async function onSubmit(values: FormValues) {
-    const data = {
+    const data: any = {
         id: transaction.id,
-        type: transaction.type as 'income' | 'expense',
+        type: transaction.type,
         ...values,
         date: format(values.date, 'yyyy-MM-dd'),
     };
+
+    if (transaction.type === 'expense') {
+        delete data.category;
+        delete data.status;
+    }
     
     const result = await updateTransactionAction(data);
     if (result.success) {
@@ -211,7 +216,7 @@ export function EditTransactionDialog({ transaction, children }: EditTransaction
                     <FormItem>
                     <FormLabel>Descripción (Opcional)</FormLabel>
                     <FormControl>
-                        <Input placeholder="p.ej., Donación mensual" {...field} />
+                        <Input placeholder="p.ej., Donación mensual" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -219,20 +224,27 @@ export function EditTransactionDialog({ transaction, children }: EditTransaction
                 />
 
                 {isBranchDonation && (
-                    <FormField
+                     <FormField
                         control={form.control}
-                        name="sentToBranch"
+                        name="status"
                         render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                <div className="space-y-0.5">
-                                    <FormLabel>Enviado a Sucursal</FormLabel>
-                                </div>
+                            <FormItem>
+                            <FormLabel>Estado</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                    <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                    />
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona un estado" />
+                                </SelectTrigger>
                                 </FormControl>
+                                <SelectContent>
+                                <SelectItem value="Pendiente de envío">Pendiente de envío</SelectItem>
+                                <SelectItem value="Enviado">Enviado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                             <FormDescription>
+                                Cambiar a &apos;Enviado&apos; es una acción manual. Normalmente se gestiona con un envío a sucursal.
+                            </FormDescription>
+                            <FormMessage />
                             </FormItem>
                         )}
                     />

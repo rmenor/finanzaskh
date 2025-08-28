@@ -39,7 +39,6 @@ import {
   LogOut,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 import type { Transaction } from '@/lib/types';
 import { AddTransactionDialog } from './add-transaction-dialog';
@@ -55,7 +54,7 @@ interface DashboardClientProps {
   balance: number;
   branchContribution: number;
   incomeByCategory: Record<string, number>;
-  monthlyData: { month: string; income: number; expenses: number }[];
+  monthlyData: { month: string; income: number; expenses: number, branch_transfer: number }[];
   years: number[];
   selectedYear: number;
   selectedMonth: number;
@@ -154,19 +153,10 @@ export default function DashboardClient({
               </Select>
             </div>
             <AddTransactionDialog pendingBranchTransactions={pendingBranchTransactions} />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={handleLogout}>
-                    <LogOut className="h-4 w-4" />
-                    <span className="sr-only">Cerrar Sesión</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Cerrar Sesión</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Button variant="outline" size="icon" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+                <span className="sr-only">Cerrar Sesión</span>
+            </Button>
         </div>
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

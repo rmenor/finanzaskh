@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Pie, PieChart, Cell } from 'recharts';
@@ -14,6 +15,7 @@ interface MonthlyData {
   month: string;
   income: number;
   expenses: number;
+  branch_transfer: number;
 }
 
 interface IncomeByCategory {
@@ -28,6 +30,10 @@ const chartConfig = {
   expenses: {
     label: 'Gastos',
     color: 'hsl(var(--chart-3))',
+  },
+  branch_transfer: {
+    label: 'Enviado Sucursal',
+    color: 'hsl(var(--chart-2))',
   },
   congregation: {
     label: 'Congregación',
@@ -65,6 +71,7 @@ export function MonthlyOverviewChart({ data }: { data: MonthlyData[] }) {
         <ChartLegend content={<ChartLegendContent />} />
         <Bar dataKey="income" fill="var(--color-income)" radius={4} />
         <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+        <Bar dataKey="branch_transfer" fill="var(--color-branch_transfer)" radius={4} />
       </BarChart>
     </ChartContainer>
   );
