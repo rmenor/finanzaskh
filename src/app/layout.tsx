@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-          <title>Finanzas JW</title>
+          <title>Finanzas KH</title>
           <meta name="description" content="Aplicación para la gestión de finanzas" />
       </head>
       <body
