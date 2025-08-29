@@ -5,9 +5,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { CalendarIcon, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -30,12 +28,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Calendar } from './ui/calendar';
-import { cn } from '@/lib/utils';
 import { Checkbox } from './ui/checkbox';
 import { addRequestAction } from '@/lib/actions';
 import { MultiSelect } from './ui/multi-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 const monthOptions = [
     { value: 'Enero', label: 'Enero' },
@@ -52,14 +49,21 @@ const monthOptions = [
     { value: 'Diciembre', label: 'Diciembre' },
 ];
 
+const currentYear = new Date().getFullYear();
+const yearOptions = [currentYear, currentYear + 1, currentYear + 2].map(y => ({ value: String(y), label: String(y) }));
+
 const requestSchema = z.object({
     name: z.string().min(3, { message: 'El nombre es obligatorio y debe tener al menos 3 caracteres.' }),
+    year: z.coerce.number({required_error: 'El año es obligatorio.'}),
     months: z.array(z.string()).optional(),
     isContinuous: z.boolean(),
-    requestDate: z.date({ required_error: 'La fecha es obligatoria.' }),
-}).refine(data => !data.isContinuous ? data.months && data.months.length > 0 : true, {
+    hours: z.coerce.number().optional(),
+}).refine(data => data.isContinuous || (data.months && data.months.length > 0), {
     message: 'Debes especificar los meses si la solicitud no es de servicio continuo.',
     path: ['months'],
+}).refine(data => data.isContinuous || data.hours, {
+    message: 'Debes seleccionar una modalidad de horas.',
+    path: ['hours'],
 });
 
 type RequestFormValues = z.infer<typeof requestSchema>;
@@ -75,6 +79,7 @@ export function AddRequestDialog() {
       name: '',
       months: [],
       isContinuous: false,
+      year: currentYear,
     },
   });
 
@@ -156,8 +161,66 @@ export function AddRequestDialog() {
                         </FormItem>
                     )}
                 />
+
+                <FormField
+                    control={form.control}
+                    name="year"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Año de servicio</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={String(field.value)}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona un año" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {yearOptions.map(option => (
+                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 
                 {!isContinuous && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="hours"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Indique si va a hacer 15 o 30 horas</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={(value) => field.onChange(parseInt(value))}
+                              defaultValue={String(field.value)}
+                              className="flex items-center space-x-4"
+                            >
+                              <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="15" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  15 horas
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="30" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  30 horas
+                                </FormLabel>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                     control={form.control}
                     name="months"
@@ -174,50 +237,8 @@ export function AddRequestDialog() {
                         </FormItem>
                     )}
                     />
+                  </>
                 )}
-                
-                <FormField
-                    control={form.control}
-                    name="requestDate"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                        <FormLabel>Fecha de la Solicitud</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                variant={'outline'}
-                                className={cn(
-                                    'w-full pl-3 text-left font-normal',
-                                    !field.value && 'text-muted-foreground'
-                                )}
-                                >
-                                {field.value ? (
-                                    format(field.value, 'PPP', { locale: es })
-                                ) : (
-                                    <span>Elige una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                date > new Date() || date < new Date('1900-01-01')
-                                }
-                                initialFocus
-                                locale={es}
-                            />
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
 
                 <DialogFooter className="pt-4">
                     <DialogClose asChild>

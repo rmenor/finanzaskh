@@ -31,9 +31,13 @@ export type Request = {
     months: string;
     isContinuous: boolean;
     requestDate: Date;
+    endDate?: Date;
     status: RequestStatus;
+    year: number;
+    hours?: 15 | 30;
 };
 
-export type FirestoreRequest = Omit<Request, 'id' | 'requestDate'> & {
+export type FirestoreRequest = Omit<Request, 'id' | 'requestDate' | 'endDate'> & {
     requestDate: Timestamp;
+    endDate?: Timestamp;
 };

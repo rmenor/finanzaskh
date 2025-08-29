@@ -72,6 +72,9 @@ const RequestSchema = z.object({
 }).refine(data => !data.isContinuous ? data.months && data.months.length > 0 : true, {
     message: 'Debes especificar los meses si no es de continuo.',
     path: ['months'],
+}).refine(data => data.isContinuous || data.hours, {
+    message: 'Debes seleccionar una modalidad de horas.',
+    path: ['hours'],
 });
 
 const UpdateRequestStatusSchema = z.object({
@@ -84,6 +87,11 @@ const UpdateRequestStatusSchema = z.object({
 const DeleteRequestSchema = z.object({
     id: z.string().min(1, { message: 'El ID de la solicitud es obligatorio.' }),
 });
+
+const ParalyzeRequestSchema = z.object({
+    id: z.string().min(1, { message: 'El ID de la solicitud es obligatorio.' }),
+});
+
 
 export async function addIncomeAction(data: z.infer<typeof IncomeSchema>) {
   const validatedFields = IncomeSchema.safeParse(data);
@@ -265,7 +273,7 @@ export async function restoreTransactionsAction(transactions: unknown[]) {
     
     try {
         for (const transactionData of transactions) {
-            // we remove the original ID before validating and writing
+            // we remove the original ID from the backup before validating and writing
             const { id, ...dataToValidate } = transactionData as any;
             
             const validatedFields = RestoreTransactionSchema.safeParse(dataToValidate);
@@ -302,15 +310,25 @@ export async function addRequestAction(data: z.infer<typeof RequestSchema>) {
     }
   
     try {
-      const { name, months, isContinuous, requestDate } = validatedFields.data;
+      const { name, months, isContinuous, year, hours } = validatedFields.data;
   
-      await addDoc(collection(db, 'requests'), {
-          name,
-          months: isContinuous ? '' : (months || []).join(', '),
-          isContinuous,
-          requestDate: Timestamp.fromDate(requestDate),
-          status: 'Pendiente',
-      });
+      const requestData: any = {
+        name,
+        isContinuous,
+        requestDate: Timestamp.fromDate(new Date()),
+        status: 'Pendiente',
+        year,
+      };
+
+      if(isContinuous) {
+        requestData.months = '';
+      } else {
+        requestData.months = (months || []).join(', ');
+        requestData.hours = hours;
+      }
+
+      await addDoc(collection(db, 'requests'), requestData);
+
       revalidatePath('/requests');
       return { success: true, message: 'Solicitud añadida correctamente.' };
     } catch (e: any) {
@@ -362,5 +380,28 @@ export async function deleteRequestAction(data: z.infer<typeof DeleteRequestSche
     } catch (e: any) {
         const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
         return { success: false, message: `Error al eliminar la solicitud: ${message}` };
+    }
+}
+
+export async function paralyzeRequestAction(data: z.infer<typeof ParalyzeRequestSchema>) {
+    const validatedFields = ParalyzeRequestSchema.safeParse(data);
+  
+    if (!validatedFields.success) {
+      return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
+    }
+    
+    if (!db) {
+      return { success: false, message: 'La base de datos no está disponible.' };
+    }
+  
+    try {
+      const { id } = validatedFields.data;
+      const requestRef = doc(db, 'requests', id);
+      await updateDoc(requestRef, { endDate: Timestamp.fromDate(new Date()) });
+      
+      revalidatePath('/requests');
+      return { success: true, message: 'El servicio continuo ha sido paralizado.' };
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Error al paralizar la solicitud.' };
     }
 }
