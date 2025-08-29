@@ -22,3 +22,18 @@ export type Transaction = {
 export type FirestoreTransaction = Omit<Transaction, 'id' | 'date'> & {
     date: Timestamp; 
 };
+
+export type RequestStatus = 'Pendiente' | 'Aprobado' | 'Rechazado';
+
+export type Request = {
+    id: string;
+    name: string;
+    months: string;
+    isContinuous: boolean;
+    requestDate: Date;
+    status: RequestStatus;
+};
+
+export type FirestoreRequest = Omit<Request, 'id' | 'requestDate'> & {
+    requestDate: Timestamp;
+};

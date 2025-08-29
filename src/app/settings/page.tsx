@@ -118,7 +118,7 @@ export default function SettingsPage() {
             <span className="">Finanzas KH - Configuración</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
-            <Link href="/dashboard">
+            <Link href="/finance">
                 <Button variant="outline">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Volver al Panel

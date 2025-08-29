@@ -1,4 +1,4 @@
-# **App Name**: Finanzas KH
+# **App Name**: Finanzas JW
 
 ## Core Features:
 

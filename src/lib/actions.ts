@@ -13,7 +13,7 @@ import {
   Timestamp,
   deleteDoc,
 } from 'firebase/firestore';
-import type { TransactionStatus } from './types';
+import type { RequestStatus, TransactionStatus } from './types';
 
 const IncomeSchema = z.object({
   amount: z.coerce.number().positive({ message: 'La cantidad debe ser un número positivo.' }),
@@ -64,6 +64,27 @@ const RestoreTransactionSchema = z.object({
     status: z.enum(['Completado', 'Pendiente de envío', 'Enviado']).optional(),
   });
 
+const RequestSchema = z.object({
+    name: z.string().min(3, { message: 'El nombre es obligatorio.' }),
+    months: z.array(z.string()).optional(),
+    isContinuous: z.boolean(),
+    requestDate: z.date({ required_error: 'La fecha es obligatoria.' }),
+}).refine(data => !data.isContinuous ? data.months && data.months.length > 0 : true, {
+    message: 'Debes especificar los meses si no es de continuo.',
+    path: ['months'],
+});
+
+const UpdateRequestStatusSchema = z.object({
+    id: z.string().min(1, { message: 'El ID de la solicitud es obligatorio.' }),
+    status: z.enum(['Aprobado', 'Rechazado'], {
+      errorMap: () => ({ message: 'Por favor, selecciona un estado válido.' }),
+    }),
+});
+
+const DeleteRequestSchema = z.object({
+    id: z.string().min(1, { message: 'El ID de la solicitud es obligatorio.' }),
+});
+
 export async function addIncomeAction(data: z.infer<typeof IncomeSchema>) {
   const validatedFields = IncomeSchema.safeParse(data);
 
@@ -93,7 +114,7 @@ export async function addIncomeAction(data: z.infer<typeof IncomeSchema>) {
         category,
         status,
     });
-    revalidatePath('/dashboard');
+    revalidatePath('/finance');
     return { success: true, message: 'Ingreso añadido correctamente.' };
   } catch (e: any) {
     return { success: false, message: e.message || 'Error al añadir el ingreso.' };
@@ -120,7 +141,7 @@ export async function addExpenseAction(data: z.infer<typeof ExpenseSchema>) {
         description: description || '',
         status: 'Completado',
      });
-    revalidatePath('/dashboard');
+    revalidatePath('/finance');
     return { success: true, message: 'Gasto añadido correctamente.' };
   } catch (e: any) {
     return { success: false, message: e.message || 'Error al añadir el gasto.' };
@@ -161,7 +182,7 @@ export async function addBranchTransferAction(data: z.infer<typeof BranchTransfe
 
       await batch.commit();
 
-      revalidatePath('/dashboard');
+      revalidatePath('/finance');
       return { success: true, message: 'Envío a la sucursal añadido correctamente.' };
     } catch (e: any) {
       return { success: false, message: e.message || 'Error al añadir el envío a la sucursal.' };
@@ -184,29 +205,28 @@ export async function updateTransactionAction(data: z.infer<typeof UpdateTransac
         
         const transactionRef = doc(db, 'transactions', id);
         
-        // Firestore requires a plain object.
         const updateData: any = {
             ...rest,
             date: Timestamp.fromDate(new Date(rest.date)),
             description: rest.description || '',
         };
 
-        // If category is being updated, status might need to change too
         if (rest.type === 'income' && rest.category) {
+            // If category is being updated, status might need to change too
             if (rest.category === 'congregation') {
                 updateData.status = 'Completado';
             } else if (updateData.status !== 'Enviado') {
-                // Only change to pending if it wasn't already sent
+                // only set to pending if it's not already marked as sent
                 updateData.status = 'Pendiente de envío';
             }
         }
-
-        // Remove undefined fields so Firestore doesn't overwrite them
+        
         Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
         
         await updateDoc(transactionRef, updateData);
 
-        revalidatePath('/dashboard');
+        revalidatePath('/finance');
+        revalidatePath('/requests');
         return { success: true, message: 'Transacción actualizada correctamente.' };
     } catch (e: any) {
         const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
@@ -228,7 +248,7 @@ export async function deleteTransactionAction(data: z.infer<typeof DeleteTransac
     try {
         const { id } = validatedFields.data;
         await deleteDoc(doc(db, 'transactions', id));
-        revalidatePath('/dashboard');
+        revalidatePath('/finance');
         return { success: true, message: 'Transacción eliminada correctamente.' };
     } catch (e: any) {
         const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
@@ -261,11 +281,86 @@ export async function restoreTransactionsAction(transactions: unknown[]) {
         }
     
         await batch.commit();
-        revalidatePath('/dashboard');
+        revalidatePath('/finance');
         return { success: true, message: 'Transacciones restauradas correctamente.' };
 
     } catch (e: any) {
         const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
         return { success: false, message: `Error al restaurar las transacciones: ${message}` };
+    }
+}
+
+export async function addRequestAction(data: z.infer<typeof RequestSchema>) {
+    const validatedFields = RequestSchema.safeParse(data);
+  
+    if (!validatedFields.success) {
+      return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
+    }
+    
+    if (!db) {
+      return { success: false, message: 'La base de datos no está disponible.' };
+    }
+  
+    try {
+      const { name, months, isContinuous, requestDate } = validatedFields.data;
+  
+      await addDoc(collection(db, 'requests'), {
+          name,
+          months: isContinuous ? '' : (months || []).join(', '),
+          isContinuous,
+          requestDate: Timestamp.fromDate(requestDate),
+          status: 'Pendiente',
+      });
+      revalidatePath('/requests');
+      return { success: true, message: 'Solicitud añadida correctamente.' };
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Error al añadir la solicitud.' };
+    }
+}
+
+export async function updateRequestStatusAction(data: z.infer<typeof UpdateRequestStatusSchema>) {
+    const validatedFields = UpdateRequestStatusSchema.safeParse(data);
+  
+    if (!validatedFields.success) {
+      return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
+    }
+    
+    if (!db) {
+      return { success: false, message: 'La base de datos no está disponible.' };
+    }
+  
+    try {
+      const { id, status } = validatedFields.data;
+      const requestRef = doc(db, 'requests', id);
+      await updateDoc(requestRef, { status });
+      
+      revalidatePath('/requests');
+      // Adding a delay for replication, though Firestore is usually fast
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return { success: true, message: 'Estado de la solicitud actualizado correctamente.' };
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Error al actualizar el estado de la solicitud.' };
+    }
+}
+
+export async function deleteRequestAction(data: z.infer<typeof DeleteRequestSchema>) {
+    const validatedFields = DeleteRequestSchema.safeParse(data);
+
+    if (!validatedFields.success) {
+        return { success: false, message: 'Datos inválidos.' };
+    }
+
+    if (!db) {
+        return { success: false, message: 'La base de datos no está disponible.' };
+    }
+
+    try {
+        const { id } = validatedFields.data;
+        await deleteDoc(doc(db, 'requests', id));
+        revalidatePath('/requests');
+        return { success: true, message: 'Solicitud eliminada correctamente.' };
+    } catch (e: any) {
+        const message = e instanceof Error ? e.message : 'Ocurrió un error desconocido.';
+        return { success: false, message: `Error al eliminar la solicitud: ${message}` };
     }
 }
