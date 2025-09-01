@@ -188,7 +188,7 @@ export default function RequestsPage() {
                                 <TableCell>
                                     {request.isContinuous 
                                         ? `Continuo ${request.endDate ? `(finalizado ${format(request.endDate, 'PPP', { locale: es })})` : ''}` 
-                                        : request.months}
+                                        : Array.isArray(request.months) ? request.months.join(', ') : request.months}
                                 </TableCell>
                                 <TableCell>{request.hours ? `${request.hours} hrs` : 'N/A'}</TableCell>
                                 <TableCell>{getStatusBadge(request.status)}</TableCell>

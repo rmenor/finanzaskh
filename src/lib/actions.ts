@@ -322,14 +322,13 @@ export async function addRequestAction(data: z.infer<typeof RequestSchema>) {
       const requestData: any = {
         name,
         isContinuous,
+        requestDate: Timestamp.fromDate(new Date()),
         status: 'Pendiente',
         year,
+        months: months || [],
       };
 
-      if(isContinuous) {
-        requestData.months = '';
-      } else {
-        requestData.months = (months || []).join(', ');
+      if(!isContinuous) {
         requestData.hours = hours;
       }
 
@@ -453,3 +452,6 @@ export async function getCongregationAction() {
       return { success: false, message: e.message || 'Error al actualizar la congregación.' };
     }
   }
+
+    
+    

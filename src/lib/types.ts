@@ -28,7 +28,7 @@ export type RequestStatus = 'Pendiente' | 'Aprobado' | 'Rechazado';
 export type Request = {
     id: string;
     name: string;
-    months: string;
+    months: string[];
     isContinuous: boolean;
     requestDate: Date;
     endDate?: Date;
