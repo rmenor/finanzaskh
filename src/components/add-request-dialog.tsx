@@ -58,10 +58,20 @@ const requestSchema = z.object({
     months: z.array(z.string()).optional(),
     isContinuous: z.boolean(),
     hours: z.coerce.number().optional(),
-}).refine(data => data.isContinuous || (data.months && data.months.length > 0), {
+}).refine(data => {
+    if (!data.isContinuous) {
+        return data.months && data.months.length > 0;
+    }
+    return true;
+}, {
     message: 'Debes especificar los meses si la solicitud no es de servicio continuo.',
     path: ['months'],
-}).refine(data => data.isContinuous || data.hours, {
+}).refine(data => {
+    if (!data.isContinuous) {
+        return !!data.hours;
+    }
+    return true;
+}, {
     message: 'Debes seleccionar una modalidad de horas.',
     path: ['hours'],
 });

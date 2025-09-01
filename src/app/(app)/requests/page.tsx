@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RequestActions } from '@/components/request-actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Printer, CircleHelp, CircleCheck, CircleX } from 'lucide-react';
 
 const serializeRequest = (doc: any): Request => {
     const data = doc.data() as FirestoreRequest;
@@ -25,6 +25,7 @@ const serializeRequest = (doc: any): Request => {
       ...data,
       requestDate: (data.requestDate as unknown as Timestamp).toDate(),
       endDate: data.endDate ? (data.endDate as unknown as Timestamp).toDate() : undefined,
+      months: data.months || [],
     };
   };
 
@@ -50,6 +51,7 @@ export default function RequestsPage() {
     const [loading, setLoading] = useState(true);
     const [monthFilter, setMonthFilter] = useState('todos');
     const [yearFilter, setYearFilter] = useState<string>('todos');
+    const [statusFilter, setStatusFilter] = useState('todos');
     const [availableYears, setAvailableYears] = useState<number[]>([]);
 
     useEffect(() => {
@@ -81,32 +83,48 @@ export default function RequestsPage() {
         fetchRequests();
     }, []);
 
-    const filteredRequests = useMemo(() => {
+    const monthYearFilteredRequests = useMemo(() => {
         return requests.filter(request => {
             const yearMatch = yearFilter === 'todos' || request.year === parseInt(yearFilter);
             if (!yearMatch) return false;
-
+    
             if (monthFilter === 'todos') return true;
-            
+    
             const selectedMonthDate = new Date(parseInt(yearFilter), monthNameToNumber[monthFilter], 1);
             
-            // For continuous requests, check if the month is within the service period
             if(request.isContinuous) {
-                const requestStartDate = new Date(request.requestDate.getFullYear(), request.requestDate.getMonth(), 1);
-
-                if (selectedMonthDate < requestStartDate) return false;
-
+                const requestStartDate = new Date(request.requestDate);
+                requestStartDate.setHours(0, 0, 0, 0);
+    
                 if (request.endDate) {
-                    const requestEndDate = new Date(request.endDate.getFullYear(), request.endDate.getMonth(), 1);
-                    return selectedMonthDate <= requestEndDate;
+                    const requestEndDate = new Date(request.endDate);
+                    requestEndDate.setHours(23, 59, 59, 999);
+                    return selectedMonthDate >= new Date(requestStartDate.getFullYear(), requestStartDate.getMonth(), 1) &&
+                           selectedMonthDate <= new Date(requestEndDate.getFullYear(), requestEndDate.getMonth(), 1);
                 }
-                return true; // No end date, so it's active
+                
+                return selectedMonthDate >= new Date(requestStartDate.getFullYear(), requestStartDate.getMonth(), 1);
             }
-
-            // For monthly requests
-            return request.months.includes(monthFilter);
+    
+            return Array.isArray(request.months) && request.months.includes(monthFilter);
         });
     }, [requests, monthFilter, yearFilter]);
+
+    const filteredRequests = useMemo(() => {
+        if (statusFilter === 'todos') {
+            return monthYearFilteredRequests;
+        }
+        return monthYearFilteredRequests.filter(request => request.status === statusFilter);
+    }, [monthYearFilteredRequests, statusFilter]);
+
+    const statusTotals = useMemo(() => {
+        return monthYearFilteredRequests.reduce((totals, request) => {
+            if (request.status === 'Pendiente') totals.pending++;
+            else if (request.status === 'Aprobado') totals.approved++;
+            else if (request.status === 'Rechazado') totals.rejected++;
+            return totals;
+        }, { pending: 0, approved: 0, rejected: 0 });
+    }, [monthYearFilteredRequests]);
 
     const getStatusBadge = (status: string) => {
         const statusClasses: Record<string, string> = {
@@ -136,7 +154,7 @@ export default function RequestsPage() {
                         </SelectContent>
                     </Select>
                     <Select value={monthFilter} onValueChange={setMonthFilter}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-[150px]">
                             <SelectValue placeholder="Filtrar por mes" />
                         </SelectTrigger>
                         <SelectContent>
@@ -147,6 +165,17 @@ export default function RequestsPage() {
                             ))}
                         </SelectContent>
                     </Select>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[150px]">
+                            <SelectValue placeholder="Filtrar por estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="todos">Todos</SelectItem>
+                            <SelectItem value="Pendiente">Pendiente</SelectItem>
+                            <SelectItem value="Aprobado">Aprobado</SelectItem>
+                            <SelectItem value="Rechazado">Rechazado</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button variant="outline" onClick={() => window.print()}>
                         <Printer className="mr-2 h-4 w-4" />
                         Imprimir
@@ -154,6 +183,40 @@ export default function RequestsPage() {
                     <AddRequestDialog />
                 </div>
             </div>
+
+            <div className="grid gap-4 md:grid-cols-3 mb-4 print:hidden">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+                        <CircleHelp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{statusTotals.pending}</div>
+                        <p className="text-xs text-muted-foreground">Solicitudes por revisar</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Aprobadas</CardTitle>
+                        <CircleCheck className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{statusTotals.approved}</div>
+                        <p className="text-xs text-muted-foreground">Precursores activos este mes/año</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Rechazadas</CardTitle>
+                        <CircleX className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{statusTotals.rejected}</div>
+                         <p className="text-xs text-muted-foreground">Solicitudes no aprobadas</p>
+                    </CardContent>
+                </Card>
+            </div>
+
              <Card className="print:shadow-none print:border-none">
                 <CardHeader>
                     <CardTitle>Lista de Solicitudes</CardTitle>
@@ -188,7 +251,7 @@ export default function RequestsPage() {
                                 <TableCell>
                                     {request.isContinuous 
                                         ? `Continuo ${request.endDate ? `(finalizado ${format(request.endDate, 'PPP', { locale: es })})` : ''}` 
-                                        : Array.isArray(request.months) ? request.months.join(', ') : request.months}
+                                        : request.months.join(', ')}
                                 </TableCell>
                                 <TableCell>{request.hours ? `${request.hours} hrs` : 'N/A'}</TableCell>
                                 <TableCell>{getStatusBadge(request.status)}</TableCell>
@@ -211,3 +274,4 @@ export default function RequestsPage() {
         </div>
     );
 }
+

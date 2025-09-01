@@ -54,7 +54,6 @@ const DeleteTransactionSchema = z.object({
 });
 
 const RestoreTransactionSchema = z.object({
-    // id: z.string(), // The original ID from the backup
     type: z.enum(['income', 'expense', 'branch_transfer']),
     amount: z.number(),
     date: z.object({
@@ -67,15 +66,25 @@ const RestoreTransactionSchema = z.object({
   });
 
 const RequestSchema = z.object({
-    name: z.string().min(3, { message: 'El nombre es obligatorio.' }),
+    name: z.string().min(3, { message: 'El nombre es obligatorio y debe tener al menos 3 caracteres.' }),
     year: z.coerce.number({required_error: 'El año es obligatorio.'}),
     months: z.array(z.string()).optional(),
     isContinuous: z.boolean(),
     hours: z.coerce.number().optional(),
-}).refine(data => data.isContinuous || (data.months && data.months.length > 0), {
+}).refine(data => {
+    if (!data.isContinuous) {
+        return data.months && data.months.length > 0;
+    }
+    return true;
+}, {
     message: 'Debes especificar los meses si la solicitud no es de servicio continuo.',
     path: ['months'],
-}).refine(data => data.isContinuous || data.hours, {
+}).refine(data => {
+    if (!data.isContinuous) {
+        return !!data.hours;
+    }
+    return true;
+}, {
     message: 'Debes seleccionar una modalidad de horas.',
     path: ['hours'],
 });
@@ -179,13 +188,11 @@ export async function addBranchTransferAction(data: z.infer<typeof BranchTransfe
       
       const batch = writeBatch(db);
 
-      // Mark selected transactions as sent
       transactionIds.forEach(id => {
           const docRef = doc(db, 'transactions', id);
           batch.update(docRef, { status: 'Enviado' });
       });
 
-      // Add the new branch_transfer transaction
       const newTransferRef = doc(collection(db, 'transactions'));
       batch.set(newTransferRef, {
         amount, 
@@ -227,11 +234,9 @@ export async function updateTransactionAction(data: z.infer<typeof UpdateTransac
         };
 
         if (rest.type === 'income' && rest.category) {
-            // If category is being updated, status might need to change too
             if (rest.category === 'congregation') {
                 updateData.status = 'Completado';
             } else if (updateData.status !== 'Enviado') {
-                // only set to pending if it's not already marked as sent
                 updateData.status = 'Pendiente de envío';
             }
         }
@@ -280,14 +285,12 @@ export async function restoreTransactionsAction(transactions: unknown[]) {
     
     try {
         for (const transactionData of transactions) {
-            // we remove the original ID from the backup before validating and writing
             const { id, ...dataToValidate } = transactionData as any;
             
             const validatedFields = RestoreTransactionSchema.safeParse(dataToValidate);
     
             if (!validatedFields.success) {
               console.error('Invalid transaction in backup file:', validatedFields.error.flatten().fieldErrors);
-              // Skip invalid records
               continue;
             }
 
@@ -330,6 +333,8 @@ export async function addRequestAction(data: z.infer<typeof RequestSchema>) {
 
       if(!isContinuous) {
         requestData.hours = hours;
+      } else {
+        requestData.months = [];
       }
 
       await addDoc(collection(db, 'requests'), requestData);
@@ -358,7 +363,6 @@ export async function updateRequestStatusAction(data: z.infer<typeof UpdateReque
       await updateDoc(requestRef, { status });
       
       revalidatePath('/requests');
-      // Adding a delay for replication, though Firestore is usually fast
       await new Promise(resolve => setTimeout(resolve, 500));
       return { success: true, message: 'Estado de la solicitud actualizado correctamente.' };
     } catch (e: any) {
@@ -423,7 +427,7 @@ export async function getCongregationAction() {
       if (docSnap.exists()) {
         return { success: true, name: docSnap.data().name };
       } else {
-        return { success: true, name: '' }; // Document doesn't exist, return empty string
+        return { success: true, name: '' };
       }
     } catch (e: any) {
       return { success: false, message: e.message || 'Error al obtener la congregación.', name: '' };
@@ -452,6 +456,3 @@ export async function getCongregationAction() {
       return { success: false, message: e.message || 'Error al actualizar la congregación.' };
     }
   }
-
-    
-    
