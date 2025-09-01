@@ -18,6 +18,7 @@ export default function RootLayout({
       <head>
           <title>KH App</title>
           <meta name="description" content="Aplicación para la gestión de finanzas" />
+          <link rel="icon" href="/icon.svg" type="image/svg+xml" />
           <link rel="manifest" href="/manifest.json" />
       </head>
       <body
