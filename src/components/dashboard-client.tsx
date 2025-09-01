@@ -121,12 +121,12 @@ export default function DashboardClient({
 
   return (
     <div className="flex flex-col w-full">
-      <div className="flex items-center justify-between space-y-2 mb-4">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Panel de Finanzas</h1>
-        <div className="flex items-center space-x-2">
-            <div className='flex gap-2'>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+            <div className='flex gap-2 w-full'>
               <Select value={String(selectedYear)} onValueChange={(value) => handleFilterChange('year', value)}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-full sm:w-[120px]">
                   <SelectValue placeholder="Año" />
                 </SelectTrigger>
                 <SelectContent>
@@ -136,7 +136,7 @@ export default function DashboardClient({
                 </SelectContent>
               </Select>
               <Select value={String(selectedMonth)} onValueChange={(value) => handleFilterChange('month', value)}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Mes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -146,11 +146,13 @@ export default function DashboardClient({
                 </SelectContent>
               </Select>
             </div>
-            <AddTransactionDialog pendingBranchTransactions={pendingBranchTransactions} />
+            <div className="w-full sm:w-auto">
+              <AddTransactionDialog pendingBranchTransactions={pendingBranchTransactions} />
+            </div>
         </div>
       </div>
       <Tabs defaultValue="overview" className="w-full space-y-4">
-        <TabsList>
+        <TabsList className="overflow-x-auto whitespace-nowrap w-full justify-start sm:w-auto">
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="transactions">Transacciones del Mes</TabsTrigger>
           <TabsTrigger value="all">Todas</TabsTrigger>

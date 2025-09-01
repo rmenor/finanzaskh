@@ -89,6 +89,7 @@ const RequestSchema = z.object({
     path: ['hours'],
 });
 
+
 const UpdateRequestStatusSchema = z.object({
     id: z.string().min(1, { message: 'El ID de la solicitud es obligatorio.' }),
     status: z.enum(['Aprobado', 'Rechazado'], {

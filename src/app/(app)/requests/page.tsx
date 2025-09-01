@@ -137,11 +137,11 @@ export default function RequestsPage() {
 
     return (
         <div className="flex flex-col w-full">
-            <div className="flex items-center justify-between space-y-2 mb-4 print:hidden">
-                <h1 className="text-2xl font-bold tracking-tight">Solicitudes de Precursorado</h1>
-                <div className="flex items-center gap-2">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 print:hidden">
+                <h1 className="text-2xl font-bold tracking-tight w-full md:w-auto">Solicitudes de Precursorado</h1>
+                <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
                     <Select value={yearFilter} onValueChange={setYearFilter}>
-                        <SelectTrigger className="w-[120px]">
+                        <SelectTrigger className="w-full md:w-[120px]">
                             <SelectValue placeholder="Año" />
                         </SelectTrigger>
                         <SelectContent>
@@ -154,7 +154,7 @@ export default function RequestsPage() {
                         </SelectContent>
                     </Select>
                     <Select value={monthFilter} onValueChange={setMonthFilter}>
-                        <SelectTrigger className="w-[150px]">
+                        <SelectTrigger className="w-full md:w-[150px]">
                             <SelectValue placeholder="Filtrar por mes" />
                         </SelectTrigger>
                         <SelectContent>
@@ -166,7 +166,7 @@ export default function RequestsPage() {
                         </SelectContent>
                     </Select>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[150px]">
+                        <SelectTrigger className="w-full md:w-[150px]">
                             <SelectValue placeholder="Filtrar por estado" />
                         </SelectTrigger>
                         <SelectContent>
@@ -176,11 +176,13 @@ export default function RequestsPage() {
                             <SelectItem value="Rechazado">Rechazado</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button variant="outline" onClick={() => window.print()}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Imprimir
-                    </Button>
-                    <AddRequestDialog />
+                    <div className="flex gap-2 w-full md:w-auto">
+                         <Button variant="outline" onClick={() => window.print()} className="w-full">
+                            <Printer className="mr-2 h-4 w-4" />
+                            Imprimir
+                        </Button>
+                        <AddRequestDialog />
+                    </div>
                 </div>
             </div>
 
@@ -230,44 +232,46 @@ export default function RequestsPage() {
                             <Skeleton className="h-10 w-full" />
                         </div>
                    ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre del Solicitante</TableHead>
-                                <TableHead>Fecha de Solicitud</TableHead>
-                                <TableHead>Año</TableHead>
-                                <TableHead>Mes(es)</TableHead>
-                                <TableHead>Horas</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead className="text-right print:hidden">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredRequests.length > 0 ? filteredRequests.map((request) => (
-                            <TableRow key={request.id}>
-                                <TableCell className="font-medium">{request.name}</TableCell>
-                                <TableCell>{format(new Date(request.requestDate), 'PPP', { locale: es })}</TableCell>
-                                <TableCell>{request.year}</TableCell>
-                                <TableCell>
-                                    {request.isContinuous 
-                                        ? `Continuo ${request.endDate ? `(finalizado ${format(request.endDate, 'PPP', { locale: es })})` : ''}` 
-                                        : request.months.join(', ')}
-                                </TableCell>
-                                <TableCell>{request.hours ? `${request.hours} hrs` : 'N/A'}</TableCell>
-                                <TableCell>{getStatusBadge(request.status)}</TableCell>
-                                <TableCell className="text-right print:hidden">
-                                    <RequestActions request={request} />
-                                </TableCell>
-                            </TableRow>
-                            )) : (
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                                        No hay solicitudes que coincidan con los filtros.
+                                    <TableHead>Nombre del Solicitante</TableHead>
+                                    <TableHead>Fecha de Solicitud</TableHead>
+                                    <TableHead>Año</TableHead>
+                                    <TableHead>Mes(es)</TableHead>
+                                    <TableHead>Horas</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead className="text-right print:hidden">Acciones</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredRequests.length > 0 ? filteredRequests.map((request) => (
+                                <TableRow key={request.id}>
+                                    <TableCell className="font-medium">{request.name}</TableCell>
+                                    <TableCell>{format(new Date(request.requestDate), 'PPP', { locale: es })}</TableCell>
+                                    <TableCell>{request.year}</TableCell>
+                                    <TableCell>
+                                        {request.isContinuous 
+                                            ? `Continuo ${request.endDate ? `(finalizado ${format(request.endDate, 'PPP', { locale: es })})` : ''}` 
+                                            : request.months.join(', ')}
+                                    </TableCell>
+                                    <TableCell>{request.hours ? `${request.hours} hrs` : 'N/A'}</TableCell>
+                                    <TableCell>{getStatusBadge(request.status)}</TableCell>
+                                    <TableCell className="text-right print:hidden">
+                                        <RequestActions request={request} />
                                     </TableCell>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                                            No hay solicitudes que coincidan con los filtros.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                    )}
                 </CardContent>
             </Card>

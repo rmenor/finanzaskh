@@ -127,7 +127,7 @@ export function AddTransactionDialog({ pendingBranchTransactions }: AddTransacti
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Añadir Transacción</Button>
+        <Button className="w-full">Añadir Transacción</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
