@@ -73,7 +73,7 @@ const RequestSchema = z.object({
     isContinuous: z.boolean(),
     hours: z.coerce.number().optional(),
 }).refine(data => data.isContinuous || (data.months && data.months.length > 0), {
-    message: 'Debes especificar los meses si no es de continuo.',
+    message: 'Debes especificar los meses si la solicitud no es de servicio continuo.',
     path: ['months'],
 }).refine(data => data.isContinuous || data.hours, {
     message: 'Debes seleccionar una modalidad de horas.',
@@ -322,7 +322,6 @@ export async function addRequestAction(data: z.infer<typeof RequestSchema>) {
       const requestData: any = {
         name,
         isContinuous,
-        requestDate: Timestamp.fromDate(new Date()),
         status: 'Pendiente',
         year,
       };
