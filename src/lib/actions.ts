@@ -12,6 +12,8 @@ import {
   writeBatch,
   Timestamp,
   deleteDoc,
+  getDoc,
+  setDoc,
 } from 'firebase/firestore';
 import type { RequestStatus, TransactionStatus } from './types';
 
@@ -66,10 +68,11 @@ const RestoreTransactionSchema = z.object({
 
 const RequestSchema = z.object({
     name: z.string().min(3, { message: 'El nombre es obligatorio.' }),
+    year: z.coerce.number({required_error: 'El año es obligatorio.'}),
     months: z.array(z.string()).optional(),
     isContinuous: z.boolean(),
-    requestDate: z.date({ required_error: 'La fecha es obligatoria.' }),
-}).refine(data => !data.isContinuous ? data.months && data.months.length > 0 : true, {
+    hours: z.coerce.number().optional(),
+}).refine(data => data.isContinuous || (data.months && data.months.length > 0), {
     message: 'Debes especificar los meses si no es de continuo.',
     path: ['months'],
 }).refine(data => data.isContinuous || data.hours, {
@@ -90,6 +93,10 @@ const DeleteRequestSchema = z.object({
 
 const ParalyzeRequestSchema = z.object({
     id: z.string().min(1, { message: 'El ID de la solicitud es obligatorio.' }),
+});
+
+const CongregationSchema = z.object({
+    name: z.string().min(1, { message: 'El nombre de la congregación es obligatorio.' }),
 });
 
 
@@ -405,3 +412,45 @@ export async function paralyzeRequestAction(data: z.infer<typeof ParalyzeRequest
       return { success: false, message: e.message || 'Error al paralizar la solicitud.' };
     }
 }
+
+export async function getCongregationAction() {
+    if (!db) {
+      return { success: false, message: 'La base de datos no está disponible.', name: '' };
+    }
+  
+    try {
+      const docRef = doc(db, 'congregations', 'main');
+      const docSnap = await getDoc(docRef);
+  
+      if (docSnap.exists()) {
+        return { success: true, name: docSnap.data().name };
+      } else {
+        return { success: true, name: '' }; // Document doesn't exist, return empty string
+      }
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Error al obtener la congregación.', name: '' };
+    }
+  }
+  
+  export async function updateCongregationAction(data: z.infer<typeof CongregationSchema>) {
+    const validatedFields = CongregationSchema.safeParse(data);
+  
+    if (!validatedFields.success) {
+      return { success: false, message: 'Datos inválidos.', errors: validatedFields.error.flatten().fieldErrors };
+    }
+  
+    if (!db) {
+      return { success: false, message: 'La base de datos no está disponible.' };
+    }
+  
+    try {
+      const { name } = validatedFields.data;
+      const docRef = doc(db, 'congregations', 'main');
+      await setDoc(docRef, { name });
+  
+      revalidatePath('/settings');
+      return { success: true, message: 'Nombre de la congregación actualizado correctamente.' };
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Error al actualizar la congregación.' };
+    }
+  }

@@ -87,16 +87,24 @@ export default function RequestsPage() {
             if (!yearMatch) return false;
 
             if (monthFilter === 'todos') return true;
+            
+            const selectedMonthDate = new Date(parseInt(yearFilter), monthNameToNumber[monthFilter], 1);
+            
+            // For continuous requests, check if the month is within the service period
+            if(request.isContinuous) {
+                const requestStartDate = new Date(request.requestDate.getFullYear(), request.requestDate.getMonth(), 1);
 
-            const filterDate = new Date(parseInt(yearFilter), monthNameToNumber[monthFilter], 1);
+                if (selectedMonthDate < requestStartDate) return false;
 
-            const isContinuousMatch = request.isContinuous && 
-                                    request.requestDate <= filterDate &&
-                                    (!request.endDate || request.endDate >= filterDate);
+                if (request.endDate) {
+                    const requestEndDate = new Date(request.endDate.getFullYear(), request.endDate.getMonth(), 1);
+                    return selectedMonthDate <= requestEndDate;
+                }
+                return true; // No end date, so it's active
+            }
 
-            const monthListMatch = !request.isContinuous && request.months.includes(monthFilter);
-
-            return isContinuousMatch || monthListMatch;
+            // For monthly requests
+            return request.months.includes(monthFilter);
         });
     }, [requests, monthFilter, yearFilter]);
 

@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-          <title>Finanzas KH</title>
+          <title>KH App</title>
           <meta name="description" content="Aplicación para la gestión de finanzas" />
           <link rel="manifest" href="/manifest.json" />
       </head>

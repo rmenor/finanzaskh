@@ -2,16 +2,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Upload, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Loader2, Save } from 'lucide-react';
 import { AppLogo } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import type { FirestoreTransaction, Transaction } from '@/lib/types';
-import { restoreTransactionsAction } from '@/lib/actions';
+import { restoreTransactionsAction, updateCongregationAction, getCongregationAction } from '@/lib/actions';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
@@ -20,7 +19,27 @@ export default function SettingsPage() {
     const [isBackingUp, setIsBackingUp] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
     const [backupFile, setBackupFile] = useState<File | null>(null);
+    const [congregationName, setCongregationName] = useState('');
+    const [isSavingCongregation, setIsSavingCongregation] = useState(false);
     const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchCongregationName = async () => {
+            const { success, name, message } = await getCongregationAction();
+            if (success) {
+                setCongregationName(name);
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Error al cargar datos',
+                    description: message,
+                });
+            }
+        };
+
+        fetchCongregationName();
+    }, [toast]);
+
 
     const handleBackup = async () => {
         setIsBackingUp(true);
@@ -110,12 +129,31 @@ export default function SettingsPage() {
         reader.readAsText(backupFile);
     };
 
+    const handleSaveCongregation = async () => {
+        setIsSavingCongregation(true);
+        const result = await updateCongregationAction({ name: congregationName });
+        if (result.success) {
+            toast({
+                title: 'Éxito',
+                description: 'Nombre de la congregación guardado.',
+            });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error al guardar',
+                description: result.message || 'No se pudo guardar el nombre de la congregación.',
+            });
+        }
+        setIsSavingCongregation(false);
+    };
+
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
        <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
         <div className="flex items-center gap-2 font-semibold">
             <AppLogo className="h-6 w-6 text-primary" />
-            <span className="">Finanzas KH - Configuración</span>
+            <span className="">KH App - Configuración</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
             <Link href="/finance">
@@ -127,6 +165,28 @@ export default function SettingsPage() {
         </div>
       </header>
       <main className="flex flex-1 flex-col items-center justify-start p-4 md:p-8 space-y-8">
+
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle>Información de la Congregación</CardTitle>
+            <CardDescription>
+                Establece el nombre de tu congregación.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center gap-4">
+            <Input 
+                placeholder="Nombre de la congregación" 
+                value={congregationName}
+                onChange={(e) => setCongregationName(e.target.value)}
+            />
+            <Button onClick={handleSaveCongregation} disabled={isSavingCongregation}>
+                {isSavingCongregation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {isSavingCongregation ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </CardContent>
+        </Card>
+
+
         <Card className="w-full max-w-2xl">
           <CardHeader>
             <CardTitle>Copia de Seguridad</CardTitle>
